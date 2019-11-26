@@ -2,7 +2,7 @@
 # RNAi screen for piRNA pathway genes
 
 
-In 2013, **3** papers applied RNAi screens for piRNA pathway genes were published on **Molecular Cell** in the same volumn, from two research groups: [Greg Lab](https://www.cruk.cam.ac.uk/author/greg-hannon) and [Julius Lab](https://www.imba.oeaw.ac.at/research/julius-brennecke/). This documents aimed to extract overlap genes between screens.
+In 2013, **3** papers applied RNAi screens for piRNA pathway genes in fruitfly were published on **Molecular Cell** in the same volumn, from two research groups: [Greg Lab](https://www.cruk.cam.ac.uk/author/greg-hannon) and [Julius Lab](https://www.imba.oeaw.ac.at/research/julius-brennecke/). This documents aimed to extract overlap genes between screens.
 
 ## Details of each screen
 
