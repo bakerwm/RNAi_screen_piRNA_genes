@@ -17,264 +17,177 @@ output:
 
 ```{r pkgs, echo = FALSE}
 # load data
-suppressPackageStartupMessages(library(readr))
-suppressPackageStartupMessages(library(dplyr))
-suppressPackageStartupMessages(library(ggupset))
-suppressPackageStartupMessages(library(ggplot2))
-suppressPackageStartupMessages(library(knitr))
+library(readr, quietly = T)
+library(dplyr, quietly = T)
+library(ggplot2, quietly = T)
+library(ggupset, quietly = T)
+library(knitr, quietly = T)
 ```
 
+## README
 
-## I. Summary
+Here are the hits of RNAi screen in fruitfly, by Greg and Julius lab in 2013, published on Mol Cell.
 
++ Ben (Greg lab)
 
-+ 1. Highlight genes in all three screens
+  - 1. mean value <= -2.0 (n=74)
+  
+  - 2. mean value <= -1.5 (n=216)
+  
+  - 3. at least in two TEs, <= -2.0 (n=137)
+  
+  - 4. at least in one TE,  <= -2.0 (n=377)  
 
-The following **11** genes were identified as piRNA pathway genes in all three screens.
++ Handler (Julius lab) 
+
+  - 1. staining >= 2.0 (n=49)
+  
+  - 2. staining >= 1.5 (n=80)
+  
+  - 3. staining >= 1.0 (n=144)
+
++ Muerdter (Greg lab) 
+
+  - 1. va, validated genes (n=87)
+  
+  - 2. dd, development defect, (n=52)
+  
+  - 3. nv, non validated, (n=149)
+  
+## 1. gene list (137 + 144 + 87)
 
 ```{r, echo = FALSE}
-f1 <- "results/2.screen-377-144-87.txt"
-df <- readr::read_delim(f1, "\t", col_types = readr::cols()) 
+f1  <- "data/fixed_list/screen_hits.137_144_87.csv"
+df1 <- readr::read_csv(f1, show_col_types = F)
+print(table(df1$sum))
+```
 
-df %>%
-  dplyr::filter(sum == 3) %>%
-  dplyr::select(1:3) %>%
-  dplyr::arrange(Symbol) %>%
-  dplyr::pull(Symbol)
+A total of **328** genes. **9** genes identified in all three screen; **22** genes were identified in two screen; **297** were identified in only one screen.
+
+# <a href="" ></a>
+
+```{r group1a, results="asis", echo = FALSE}
+df1 %>%
+  dplyr::mutate(
+    gene_id = paste0(
+      "<a href=http://flybase.org/reports/", gene_id, " target='_blank'>", gene_id, "</a>")
+    # gene_id = paste0("[", gene_id, "](http://flybase.org/reports/", gene_id, ")")
+  ) %>% 
+  DT::datatable(
+    extensions = 'Buttons',
+    rownames = FALSE,
+    escape   = FALSE, # show html code
+    options  = list(
+      dom        = 'Bftpl',
+      pageLength = 10,
+      scrollX    = TRUE,
+      extensions = 'Buttons',
+      buttons    = list('copy',
+                        list(extend  = "collection",
+                             buttons = "excel",
+                             text    = "Download"))
+    )
+  )
 ```
 
 
-+ 2. genes identified in at least **two** screens
-
-The following **32** genes were identified in **two** screens. (the last one "NA" is gene "vas", the CG number was updated from "CG43081" to "CG46283" )
-
-```{r, echo = FALSE}
-df %>%
-  dplyr::filter(sum == 2) %>%
-  dplyr::select(1:3) %>%
-  dplyr::arrange(Symbol) %>%
-  dplyr::pull(Symbol)
+```{r group1b, echo = FALSE, eval = F}
+df1b <- list(
+  ben_137     = dplyr::filter(df1, ben_137 > 0) %>% pull("gene_id"),
+  handler_144 = dplyr::filter(df1, handler_144 > 0) %>% pull("gene_id"),
+  muerdter_87 = dplyr::filter(df1, muerdter_87 > 0) %>% pull("gene_id")
+)
+hisequtils::overlap(df1b, labels = c("ben_137", "handler_144", "muerdter_87"))
 ```
 
-
-## II. Results
-
-### 1. Group1: 74-49-87
-
-Candidate genes:  
-  
-  - 74 genes, Czech Benjamin (Greg lab)    
-  
-  - 49 genes, Handler Dominik (Julius lab)    
-  
-  - 87 genes, Muerdter Felix (Greg lab)  
-
-The positive genes reported in each screen.
-
-
-```{r group1, echo = FALSE, fig.width = 6, fig.height = 4}
-
-f1 <- "results/1.screen-74-80-87.txt"
-
-df <- readr::read_delim(f1, "\t", col_types = readr::cols()) 
-
-df1 <- df %>%
-  tidyr::gather(group, status, 4:6) %>%
+```{r group1c, echo = F}
+df1b <- df1 %>%
+  tidyr::pivot_longer(4:6, names_to = "group", values_to = "status") %>%
   dplyr::filter(status > 0) %>%
-  group_by(FBID, CG, Symbol) %>%
-  summarize(groups = list(group)) 
+  group_by(gene_id, cg_id, symbol) %>%
+  summarize(groups = list(group), .groups = "drop") 
 
-p1 <- df1 %>%
+p1 <- df1b %>%
   ggplot(aes(groups)) + 
   geom_bar() +
   geom_text(aes(label = ..count..), stat = "count", vjust = -.3) +
   ggtitle("Genes Overlap between groups") +
-  scale_x_upset()
-
-print(p1)
-```
-
-Overlapped genes:
-
-+ Overlap in all screens: 
-
-
-```{r group1a, echo = FALSE}
-df %>%
-  dplyr::filter(sum == 3) %>%
-  dplyr::select(1:3) %>%
-  dplyr::arrange(Symbol) %>%
-  dplyr::mutate(
-    Symbol = paste0("[", Symbol, "](http://flybase.org/reports/", FBID, ")"),
-    FBID = paste0("[", FBID, "](http://flybase.org/reports/", FBID, ")")) %>%
-  tibble::rowid_to_column("num") %>%
-  kable()
-```
-
-+ Overlap in at least two screens
-
-```{r group1b, echo = FALSE}
-df %>%
-  dplyr::filter(sum == 2) %>%
-  dplyr::select(1:3) %>%
-  dplyr::arrange(Symbol) %>%
-  dplyr::mutate(
-    Symbol = paste0("[", Symbol, "](http://flybase.org/reports/", FBID, ")"),
-    FBID = paste0("[", FBID, "](http://flybase.org/reports/", FBID, ")")) %>%
-  tibble::rowid_to_column("num") %>%
-  kable()
-```
-
-
-
-### 2. Group2: 377-144-87
-
-Candidate genes:  
-  
-  - 377 genes, Czech Benjamin (Greg lab)    
-  
-  - 144 genes, Handler Dominik (Julius lab)    
-  
-  - 87 genes, Muerdter Felix (Greg lab)  
-
-For Benjamin screen, instead use average Z-score of four TEs <= -2.0 (74 genes), at least Z-score <= -2.0 for **one** TE. (377 genes).  
-
-For Dominik screen, change the criteria of staining from 2.0 (49 genes) to 1.0 (144 genes).
-
-
-```{r group2, echo = FALSE, fig.width = 6, fig.height = 4}
-# load data
-library(readr)
-library(dplyr)
-library(ggupset)
-library(ggplot2)
-
-f1 <- "results/2.screen-377-144-87.txt"
-
-df <- readr::read_delim(f1, "\t", col_types = readr::cols()) 
-
-df1 <- df %>%
-  tidyr::gather(group, status, 4:6) %>%
-  dplyr::filter(status > 0) %>%
-  group_by(FBID, CG, Symbol) %>%
-  summarize(groups = list(group)) 
-
-p1 <- df1 %>%
-  ggplot(aes(groups)) + 
-  geom_bar() +
-  geom_text(aes(label = ..count..), stat = "count", vjust = -.3) +
-  ggtitle("Genes Overlap between groups") +
-  scale_x_upset()
-
-print(p1)
-```
-
-+ Overlaped in all three screens
-
-
-```{r group2a, echo = FALSE}
-df %>%
-  dplyr::filter(sum == 3) %>%
-  dplyr::select(1:3) %>%
-  dplyr::arrange(Symbol) %>%
-  dplyr::mutate(
-    Symbol = paste0("[", Symbol, "](http://flybase.org/reports/", FBID, ")"),
-    FBID = paste0("[", FBID, "](http://flybase.org/reports/", FBID, ")")) %>%
-  tibble::rowid_to_column("num") %>%
-  kable()
-```
-
-
-+ Overlaped, in at least **two** screens
-
-
-```{r group2b, echo = FALSE}
-df %>%
-  dplyr::filter(sum == 2) %>%
-  dplyr::select(1:3) %>%
-  dplyr::arrange(Symbol) %>%
-  dplyr::mutate(
-    Symbol = paste0("[", Symbol, "](http://flybase.org/reports/", FBID, ")"),
-    FBID = paste0("[", FBID, "](http://flybase.org/reports/", FBID, ")")) %>%
-  tibble::rowid_to_column("num") %>%
-  kable()
-```
-
-
-
-### 3. Group2: 137-144-87
-
-Candidate genes:  
-  
-  - 137 genes, Czech Benjamin (Greg lab)    
-  
-  - 144 genes, Handler Dominik (Julius lab)    
-  
-  - 87 genes, Muerdter Felix (Greg lab)  
-
-For Benjamin screen, instead use average Z-score of four TEs <= -2.0 (74 genes), at least Z-score <= -2.0 for **two** TEs. (137 genes).  
-
-For Dominik screen, change the criteria of staining from 2.0 (49 genes) to 1.0 (144 genes).
-
-
-```{r group3, echo = FALSE, fig.width = 6, fig.height = 4}
-# load data
-library(readr)
-library(dplyr)
-library(ggupset)
-library(ggplot2)
-
-f1 <- "results/3.screen-137-144-87.txt"
-
-df <- readr::read_delim(f1, "\t", col_types = readr::cols()) 
-
-df1 <- df %>%
-  tidyr::gather(group, status, 4:6) %>%
-  dplyr::filter(status > 0) %>%
-  group_by(FBID, CG, Symbol) %>%
-  summarize(groups = list(group)) 
-
-p1 <- df1 %>%
-  ggplot(aes(groups)) + 
-  geom_bar() +
-  geom_text(aes(label = ..count..), stat = "count", vjust = -.3) +
-  ggtitle("Genes Overlap between groups") +
-  scale_x_upset()
-
+  scale_x_upset() + 
+  theme_bw()
 print(p1)
 ```
 
 
-+ Overlaped in all three screens
+## 2. Further process
 
+Among 328 genes from above screen hits.
 
-```{r group3a, echo = FALSE}
-df %>%
-  dplyr::filter(sum == 3) %>%
-  dplyr::select(1:3) %>%
-  dplyr::arrange(Symbol) %>%
++ 2.1  **52** genes were not tested 
+
+  - 2, already tested: `tested`
+  
+  - 17, piRNA biogenesis related genes: `piRNA_biogenesis`
+  
+  - 33, ribosomal genes: `ribosomal`
+  
++ 2.2 **60** genes were failed for further analysis
+
+  - 3, no F1: `no_F1`
+  
+  - 57, not available at the time of test: `n.a.`
+  
+```{r table2 , echo = F}
+f2  <- "data/fixed_list/screen_hits.137_144_87.not_test.csv"
+df2 <- readr::read_csv(f2, show_col_types = F)
+df2$group[is.na(df2$group)] <- "n.a."
+# show table
+df2 %>%
   dplyr::mutate(
-    Symbol = paste0("[", Symbol, "](http://flybase.org/reports/", FBID, ")"),
-    FBID = paste0("[", FBID, "](http://flybase.org/reports/", FBID, ")")) %>%
-  tibble::rowid_to_column("num") %>%
-  kable()
+    gene_id = paste0(
+      "<a href=http://flybase.org/reports/", gene_id, " target='_blank'>", gene_id, "</a>")
+    # gene_id = paste0("[", gene_id, "](http://flybase.org/reports/", gene_id, ")")
+  ) %>% 
+  DT::datatable(
+    extensions = 'Buttons',
+    rownames = T,
+    escape   = FALSE, # show html code
+    options  = list(
+      dom        = 'Bftpl',
+      pageLength = 10,
+      scrollX    = TRUE,
+      extensions = 'Buttons',
+      buttons    = list('copy',
+                        list(extend  = "collection",
+                             buttons = "excel",
+                             text    = "Download"))
+    )
+  )
 ```
 
 
-+ Overlaped, in at least two screens
+## 3. **216** genes were used for further analysis
 
 
-```{r group3b, echo = FALSE}
-df %>%
-  dplyr::filter(sum == 2) %>%
-  dplyr::select(1:3) %>%
-  dplyr::arrange(Symbol) %>%
-  dplyr::mutate(
-    Symbol = paste0("[", Symbol, "](http://flybase.org/reports/", FBID, ")"),
-    FBID = paste0("[", FBID, "](http://flybase.org/reports/", FBID, ")")) %>%
-  tibble::rowid_to_column("num") %>%
-  kable()
+```{r table3, echo = F}
+df3 <- df1 %>%
+  dplyr::filter(! gene_id %in% df2$gene_id) %>%
+    DT::datatable(
+    extensions = 'Buttons',
+    rownames = T,
+    escape   = FALSE, # show html code
+    options  = list(
+      dom        = 'Bftpl',
+      pageLength = 10,
+      scrollX    = TRUE,
+      extensions = 'Buttons',
+      buttons    = list('copy',
+                        list(extend  = "collection",
+                             buttons = "excel",
+                             text    = "Download"))
+    )
+  )
 ```
+
 
 
 ## III. Materials
@@ -388,75 +301,76 @@ suppressPackageStartupMessages(library(org.Dm.eg.db))
 ### 1. Czech (Greg lab)
 
 ```{r p1}
-## Benjamin Czech, 2013 (Greg lab)
-## table S1: https://ars.els-cdn.com/content/image/1-s2.0-S1097276513002888-mmc2.xlsx
-## 
-## Table S1. Raw Data for Primary Screen, Related to Figure 2. Shown are transformant IDs (of VDRC stock center; TID), library (Lib), viability of fly stock, and chromosome insertion (Chr) of the dsRNA for all 8,171 RNAi lines used. Gene IDs and synonyms are shown along with raw Z scores for HeTA, TAHRE, blood, and burdock.
-##
-## derepression threshold, Z-score
-## genes; Z-score
-## 74    -2.0
-## 216   -1.5
-## 137   -2.0 in at least two TE
-## 377   -2.0 in at least one TE
+#------------------------------------------------------------------------------#
+# 1. Greg lab, Ben 2013
+#------------------------------------------------------------------------------#
+#
+# Benjamin Czech, 2013 (Greg lab)
+# table S1: https://ars.els-cdn.com/content/image/1-s2.0-S1097276513002888-mmc2.xlsx
+# 
+# Table S1. Raw Data for Primary Screen, Related to Figure 2. Shown are 
+# transformant IDs (of VDRC stock center; TID), library (Lib), viability of fly
+# stock, and chromosome insertion (Chr) of the dsRNA for all 8,171 RNAi lines 
+# used. Gene IDs and synonyms are shown along with raw Z scores for HeTA, TAHRE,
+# blood, and burdock.
+#
+# derepression threshold, Z-score
+# genes; Z-score
+# 74    -2.0
+# 216   -1.5
+# 137   -2.0 in at least two TE
+# 377   -2.0 in at least one TE
 fileURL <- "https://ars.els-cdn.com/content/image/1-s2.0-S1097276513002888-mmc2.xlsx"
-fileTableS1  <- "data/1.Ben_2013_Greg_lab/TableS1.xlsx"
+fileTableS1  <- "data/raw_list/1.0.Greg_lab_Ben_2013.TableS1.xlsx"
 # download.file(fileURL, fileTableS1, method = "curl")
-
-## including NA values (n.d.)
-## 8171 records
-df <- readxl::read_xlsx(fileTableS1, na = "n.d.") %>%
-  dplyr::mutate(HeTA = as.numeric(HeTA),
-                TAHRE = as.numeric(TAHRE),
-                blood = as.numeric(blood),
-                burdock = as.numeric(burdock))
-
-## 8133 records
-df$mean <- df[, 5:8] %>%
-  rowMeans(na.rm = TRUE)
-df <- dplyr::arrange(df, mean)
-
-## df <- df[complete.cases(df), ]
-df[is.na(df)] <- 0 
-
-## threshold: -2.0 for each condition
-df$status <- purrr::map(df[, 5:8], function(x) x <= -2.0) %>% 
-  as.data.frame() %>%
-  rowSums()
-
-## threshold: -2.0, -1.5
-sum(df$mean <= -2.0) # 74
-sum(df$mean <= -1.5) # 216
-sum(df$status >= 2)  # 137, at least in two TE
-sum(df$status >= 1)  # 377, at least in two TE
-
-## total
-df1 <- df %>%
-  dplyr::filter(status >= 1) %>%
-  dplyr::mutate(FBID = mapIds(org.Dm.eg.db, keys = Gene, keytype = "FLYBASECG", column = "FLYBASE"),
-                Symbol = mapIds(org.Dm.eg.db, keys = Gene, keytype = "FLYBASECG", column = "SYMBOL"),
-                CG = Gene) %>%
-  dplyr::select(FBID, CG, Symbol, mean, status)
-
-## save to table
-file1 <- "data/1.Ben_2013_Greg_lab/01_screen_Ben_377.txt"
-readr::write_delim(df1, file1, delim = "\t", na = "n.d.", col_names = TRUE) 
-
-## 74 genes
-df2 <- df1 %>%
-  dplyr::filter(mean <= -2.0)
-
-file2 <- "data/1.Ben_2013_Greg_lab/01_screen_Ben_74.txt"
-readr::write_delim(df2, file2, delim = "\t", na = "n.d.", col_names = TRUE) 
-
-
-## 137 genes
-df3 <- df1 %>%
-  dplyr::filter(mean <= -1.5)
-
-file3 <- "data/1.Ben_2013_Greg_lab/01_screen_Ben_137.txt"
-readr::write_delim(df3, file3, delim = "\t", na = "n.d.", col_names = TRUE) 
-
+#
+# including NA values (n.d.)
+# 8171 records, 11 columns
+df1 <- readxl::read_xlsx(fileTableS1, na = "n.d.") %>%
+  dplyr::mutate(across(all_of(c("HeTA", "TAHRE", "blood", "burdock")), as.numeric))
+print(dim(df1))
+# mean values
+df1 <- df1 %>% 
+  dplyr::mutate(mean_col = rowMeans(dplyr::select(., HeTA:burdock), na.rm = TRUE)) %>%
+  dplyr::arrange(mean_col)
+# fix n.a. values
+df1[is.na(df1)] <- 0
+df1$status <- rowSums(dplyr::select(df1, HeTA:burdock) <= -2.0)
+#-------------------------#
+# threshold: -2.0, -1.5
+#-------------------------#
+## 1. mean value <= -2.0 (n=74)
+## 2. mean value <= -1.5 (n=216)
+## 3. at least in two TEs, <= -2.0 (n=137)
+## 4. at least in one TE,  <= -2.0 (n=377)
+df1 <- df1 %>%
+  dplyr::mutate(
+    tag1 = as.numeric(mean_col <= -2),
+    tag2 = as.numeric(mean_col <= -1.5),
+    tag3 = as.numeric(status   >= 2),
+    tag4 = as.numeric(status   >= 1)
+  )
+colSums(dplyr::select(df1, contains("tag")))
+# df1 <- df1[df1$status > 0, ]
+#-------------------------#
+# save each table to files
+#-------------------------#
+## tag1: mean_value <= -2.0 (n=74)
+f1a  <- "data/raw_list/1.1.Greg_lab_Ben_2013_74.txt"
+df1a <- dplyr::filter(df1, tag1 > 0)
+readr::write_delim(df1a, f1a, na = "n.d.", col_names = TRUE)
+## tag2: mean_value <= -1.5 (n=216)
+f1a  <- "data/raw_list/1.2.Greg_lab_Ben_2013_216.txt"
+df1a <- dplyr::filter(df1, tag2 > 0)
+readr::write_delim(df1a, f1a, na = "n.d.", col_names = TRUE)
+## tag3: at least 2 TEs, <= -2.0 (n=137)
+f1a  <- "data/raw_list/1.3.Greg_lab_Ben_2013_137.txt"
+df1a <- dplyr::filter(df1, tag3 > 0)
+readr::write_delim(df1a, f1a, na = "n.d.", col_names = TRUE)
+## tag4: at least 1 TEs, <= -2.0 (n=377)
+f1a  <- "data/raw_list/1.4.Greg_lab_Ben_2013_377.txt"
+df1a <- dplyr::filter(df1, tag4 > 0)
+readr::write_delim(df1a, f1a, na = "n.d.", col_names = TRUE)
 ```
 
 
@@ -464,119 +378,125 @@ readr::write_delim(df3, file3, delim = "\t", na = "n.d.", col_names = TRUE)
 ### 2. Handler (Julius lab)
 
 ```{r}
-## Handler, 2013 (Julis lab)
-## table S1: https://ars.els-cdn.com/content/image/1-s2.0-S1097276513003365-mmc2.xlsx
-##
-## Table S1. Primary and Verified Results of the Screen.
-##
-## genes (staining)
-## 49 (>=2)
-## 80 (>=1.5)
-## 144 (>=1)
+#------------------------------------------------------------------------------#
+# 2. Julius lab, Handler 2013
+#------------------------------------------------------------------------------#
+# Handler, 2013 (Julis lab)
+# table S1: https://ars.els-cdn.com/content/image/1-s2.0-S1097276513003365-mmc2.xlsx
+#
+# Table S1. Primary and Verified Results of the Screen.
+#
+# genes (staining)
+# 49 (>=2)
+# 80 (>=1.5)
+# 144 (>=1)
 fileURL <- "https://ars.els-cdn.com/content/image/1-s2.0-S1097276513003365-mmc2.xlsx"
-fileTableS1 <- "data/2.Handler_2013_Julius_lab/TableS1.xlsx"
+fileTableS1 <- "data/raw_list/2.0.Julius_lab_Handler_2013.TableS1.xlsx"
 # download.file(fileURL, fileTableS1, method = "curl")
-
-## including blanks
-df <- readxl::read_xlsx(fileTableS1, trim_ws = TRUE, skip = 1) %>% 
+#
+# loading data from Excel file (13948 rows, 11 columns)
+df2 <- readxl::read_xlsx(fileTableS1, trim_ws = TRUE, skip = 1) %>% 
   dplyr::select(c(1, 2, 4, 6, 7, 9:14)) 
-
-names(df) <- c("Symbol", "CG", "RPKM", "staining", "morphology",
-               "VDRC_1", "staining_1", "morphology_1", 
-               "VDRC_2", "staining_2", "morphology_2")
-## staining
-df_staining <- data.frame(
-  value = c(0, 1, 1.5, 2, 2.5, 3),
-  status = c("no staining", "weak staining",
-             "intermediate-weak staining", "intermediate staining",
-             "strong-intermediate staining", "strong staining"),
-  stringsAsFactors = FALSE
+colnames(df2) <- c(
+  "Symbol", "CG", "RPKM", "staining", "morphology", "VDRC_1", "staining_1", "morphology_1", 
+  "VDRC_2", "staining_2", "morphology_2"
 )
-
-df <- df %>% 
-  dplyr::mutate(status = plyr::mapvalues(staining, 
-                                         from = df_staining$value,
-                                         to = df_staining$status))
-# df <- df[complete.cases(df), ]
-df[is.na(df)] <- 0
-
-sum(df$staining >= 2)   # 49
-sum(df$staining >= 1.5) # 80
-sum(df$staining >= 1)   # 144
-
-## pick 144 genes
-df <- df %>%
-  dplyr::filter(staining >= 1)
-
-df1 <- df %>%
-  dplyr::mutate(
-    FBID = mapIds(org.Dm.eg.db, keys = CG, keytype = "FLYBASECG", column = "FLYBASE"),
-    Symbol = mapIds(org.Dm.eg.db, keys = CG, keytype = "FLYBASECG", column = "SYMBOL")) %>%
-  dplyr::select(FBID, CG, Symbol, staining, status)
-
-## save to table
-file1 <- "data/2.Handler_2013_Julius_lab/02_screen_Handler_144.txt"
-readr::write_delim(df1, file1, delim = "\t", na = "n.d.", col_names = TRUE)
-
-## 80 genes
-df2 <- df1 %>%
-  dplyr::filter(staining >= 1.5)
-##
-file2 <- "data/2.Handler_2013_Julius_lab/02_screen_Handler_80.txt"
-readr::write_delim(df2, file2, delim = "\t", na = "n.d.", col_names = TRUE)
-
-
+# fix NA values in staining
+df2$staining[is.na(df2$staining)] <- 0
+print(dim(df2))
+# Assign a new column "status" based on the "staining" column
+df2 <- df2 %>%
+  mutate(
+    status = case_when(
+      staining == 0   ~ "no staining",
+      staining == 1   ~ "weak staining",
+      staining == 1.5 ~ "intermediate-weak staining",
+      staining == 2   ~ "intermediate staining",
+      staining == 2.5 ~ "strong-intermediate staining",
+      staining == 3   ~ "strong staining",
+      TRUE ~ "no staining"  # Handle any other values (optional)
+    )
+  )
+# filter records by staining
+#-------------------------#
+# threshold: staining
+#-------------------------#
+## 1. >= 2.0 (n=49)
+## 2. >= 1.5 (n=80)
+## 3. >= 1.0 (n=144)
+df2 <- dplyr::mutate(
+  df2, 
+  tag1 = as.numeric(staining >= 2),
+  tag2 = as.numeric(staining >= 1.5),
+  tag3 = as.numeric(staining >= 1)
+)
+colSums(dplyr::select(df2, contains("tag")))
+#-------------------------#
+# save each table to files
+#-------------------------#
+## tag1: staining >= 2.0 (n=49)
+f2a  <- "data/raw_list/2.1.Julius_lab_Handler_2013_49.txt"
+df2a <- dplyr::filter(df2, tag1 > 0)
+readr::write_delim(df2a, f2a, na = "n.d.", col_names = TRUE)
+## tag1: staining >= 1.5 (n=80)
+f2a  <- "data/raw_list/2.2.Julius_lab_Handler_2013_80.txt"
+df2a <- dplyr::filter(df2, tag2 > 0)
+readr::write_delim(df2a, f2a, na = "n.d.", col_names = TRUE)
+## tag1: staining >= 1.0 (n=144)
+f2a  <- "data/raw_list/2.3.Julius_lab_Handler_2013_144.txt"
+df2a <- dplyr::filter(df2, tag3 > 0)
+readr::write_delim(df2a, f2a, na = "n.d.", col_names = TRUE)
 ```
 
 
 ### 3. Muerdter (Greg lab)
 
 ```{r}
-## Muerdter, 2013 (Greg lab)
-## table S1: https://ars.els-cdn.com/content/image/1-s2.0-S1097276513002876-mmc2.xlsx
-## table S3: https://ars.els-cdn.com/content/image/1-s2.0-S1097276513002876-mmc3.xlsx
-## Table S1. Primary Screen Results, Related to Figure 1.
-## Table S3. Validation Screen Results, Related to Figure 2.
-##
-## genes (validated)
-## 86 (va)
-## 
+#------------------------------------------------------------------------------#
+# 3. Greg lab, Muerdter 2013
+#------------------------------------------------------------------------------#
+# Muerdter, 2013 (Greg lab)
+# table S1: https://ars.els-cdn.com/content/image/1-s2.0-S1097276513002876-mmc2.xlsx
+# table S3: https://ars.els-cdn.com/content/image/1-s2.0-S1097276513002876-mmc3.xlsx
+# Table S1. Primary Screen Results, Related to Figure 1.
+# Table S3. Validation Screen Results, Related to Figure 2.
+#
+# genes (validated)
+# 86 (va)
+# 
 fileURL <- "https://ars.els-cdn.com/content/image/1-s2.0-S1097276513002876-mmc3.xlsx"
-fileTableS3 <- "data/3.Muertder_2013_Greg_lab/TableS3.xlsx"
+fileTableS3 <- "data/raw_list/3.0.Greg_lab_Muertder_2013.TableS3.xlsx"
 # download.file(fileURL, fileTableS3, method = "curl")
-
-## parsing data
-df <- readxl::read_xlsx(fileTableS3, trim_ws = TRUE)
-colnames(df) <- c("FBID", "TRANSID", "Symbol", "Fertility",
-                  "fc_gypsy", "fc_gypsy3", "fc_ZAM", "status")
-
-## 87 validated genes
-length(
-  df %>% 
-    dplyr::filter(status %in% c("va")) %>%
-    dplyr::pull("FBID") %>%
-    unique())
-
-## 52 dev defect
-length(
-  df %>% 
-    dplyr::filter(status %in% c("dd")) %>%
-    dplyr::pull("FBID") %>%
-    unique())
-
-## only va genes
-df1 <- df %>% 
-  dplyr::filter(status %in% c("va")) %>%
-  dplyr::mutate(
-    CG = mapIds(org.Dm.eg.db, keys = FBID, keytype = "FLYBASE", column = "FLYBASECG")
-  ) %>%
-  dplyr::select(FBID, CG, Symbol, status)
-
-
-## save to table
-file <- "data/3.Muertder_2013_Greg_lab/03_screen_Muerdter_87.txt"
-readr::write_delim(df1, file, delim = "\t", na = "n.d.", col_names = TRUE)
-
+#
+# loading data (341 rows, 8 columns)
+df3 <- readxl::read_xlsx(fileTableS3, trim_ws = TRUE)
+colnames(df3) <- c(
+  "FBID", "TRANSID", "Symbol", "Fertility", "fc_gypsy", "fc_gypsy3", "fc_ZAM", "status"
+)
+print(dim(df3))
+# unique gene_id (292)
+df3 <- dplyr::select(df3, FBID, Symbol, status) %>%
+  unique
+print(dim(df3))
+print(table(df3$status))
+# va, validated genes (n=87)
+# dd, development defect, (n=52)
+# nv, non validated, (n=149)
+#-------------------------#
+# save each table to files
+#-------------------------#
+## tag1: va, validated (n=87)
+f3a  <- "data/raw_list/3.1.Greg_lab_Muerdter_2013_87.txt"
+df3a <- dplyr::filter(df3, status == "va")
+readr::write_delim(df3a, f3a, na = "n.d.", col_names = TRUE)
+## tag2: dd, development defect (n=52)
+f3a  <- "data/raw_list/3.2.Greg_lab_Muerdter_2013_52.txt"
+df3a <- dplyr::filter(df3, status == "dd")
+readr::write_delim(df3a, f3a, na = "n.d.", col_names = TRUE)
+## tag3: nv, non validated (n=149)
+f3a  <- "data/raw_list/3.3.Greg_lab_Muerdter_2013_149.txt"
+df3a <- dplyr::filter(df3, status == "nv")
+readr::write_delim(df3a, f3a, na = "n.d.", col_names = TRUE)
 ```
 
 
